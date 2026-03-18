@@ -23,11 +23,11 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
-  
+
   useEffect(() => {
     disabledRef.current = isDrawingDisabled;
   }, [isDrawingDisabled]);
-  
+
   // History for undo/redo
   const history = useRef<any[]>([]);
   const redoStack = useRef<any[]>([]);
@@ -45,13 +45,13 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
   const emitDraw = React.useCallback((immediate = true) => {
     if (!fabricCanvas.current || isRemoteUpdate.current || disabledRef.current) return;
     const json = fabricCanvas.current.toJSON();
-    
+
     if (immediate) {
       history.current.push(json);
       if (history.current.length > 50) history.current.shift();
       redoStack.current = [];
     }
-    
+
     if (immediate) {
       socket.emit('draw', { boardId, elements: json });
       window.dispatchEvent(new Event('local-draw'));
@@ -90,10 +90,39 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
     });
 
     const handleResize = () => {
+      if (!fabricCanvas.current) return;
+
+      const canvas = fabricCanvas.current;
+
+      const prevWidth = canvas.getWidth();
+      const prevHeight = canvas.getHeight();
+
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+
+      // Calculate scale ratios
+      const scaleX = newWidth / prevWidth;
+      const scaleY = newHeight / prevHeight;
+
+      // Resize canvas
       canvas.setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: newWidth,
+        height: newHeight,
       });
+
+      // 🔥 Reset viewport transform (VERY IMPORTANT)
+      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+
+      // Optional: scale objects to fit new size
+      canvas.getObjects().forEach((obj) => {
+        obj.scaleX = (obj.scaleX || 1) * scaleX;
+        obj.scaleY = (obj.scaleY || 1) * scaleY;
+        obj.left = (obj.left || 0) * scaleX;
+        obj.top = (obj.top || 0) * scaleY;
+        obj.setCoords();
+      });
+
+      canvas.renderAll(); // 🚨 THIS LINE IS MANDATORY
     };
     window.addEventListener('resize', handleResize);
 
@@ -103,7 +132,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
         isRemoteUpdate.current = true;
         try {
           await fabricCanvas.current.loadFromJSON(elements);
-          
+
           fabricCanvas.current.forEachObject((obj) => {
             const isActiveToolSelect = toolRef.current === 'select';
             obj.selectable = !disabledRef.current && isActiveToolSelect;
@@ -146,7 +175,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
   useEffect(() => {
     if (!fabricCanvas.current) return;
     const canvas = fabricCanvas.current;
-    
+
     if (isDrawingDisabled) {
       canvas.isDrawingMode = false;
       canvas.selection = false;
@@ -170,10 +199,10 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
   const undo = () => {
     if (isDrawingDisabled) return;
     if (history.current.length <= 1 || !fabricCanvas.current) return;
-    
+
     const current = history.current.pop();
     redoStack.current.push(current);
-    
+
     const prevState = history.current[history.current.length - 1];
     isRemoteUpdate.current = true;
     fabricCanvas.current.loadFromJSON(prevState).then(() => {
@@ -187,10 +216,10 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
   const redo = () => {
     if (isDrawingDisabled) return;
     if (redoStack.current.length === 0 || !fabricCanvas.current) return;
-    
+
     const nextState = redoStack.current.pop();
     history.current.push(nextState);
-    
+
     isRemoteUpdate.current = true;
     fabricCanvas.current.loadFromJSON(nextState).then(() => {
       fabricCanvas.current?.renderAll();
@@ -207,7 +236,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
 
     canvas.isDrawingMode = tool === 'draw';
     canvas.selection = tool === 'select';
-    
+
     canvas.forEachObject((obj) => {
       obj.selectable = tool === 'select';
       obj.evented = tool === 'select';
@@ -216,7 +245,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
       canvas.discardActiveObject();
     }
     canvas.requestRenderAll();
-    
+
     if (tool === 'draw') {
       // Fabric.js v7 does NOT auto-create freeDrawingBrush — we must do it explicitly
       if (!canvas.freeDrawingBrush) {
@@ -249,7 +278,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
 
     let shapeStartX = 0;
     let shapeStartY = 0;
-    
+
     // Panning state
     let isDragging = false;
     let lastPosX = 0;
@@ -258,16 +287,16 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
     const eraseObject = (e: any) => {
       const pointer = canvas.getScenePoint(e);
       const objects = canvas.getObjects();
-      const threshold = Math.max(10, brushSize * 2); 
+      const threshold = Math.max(10, brushSize * 2);
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
         if (!obj) continue;
-        
+
         if (typeof obj.containsPoint === 'function' && obj.containsPoint(pointer)) {
           canvas.remove(obj);
           break;
         }
-        
+
         const bound = obj.getBoundingRect();
         if (
           bound &&
@@ -295,14 +324,14 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
       }
 
       if (tool === 'select' || tool === 'draw') return;
-      
+
       isDrawing.current = true;
 
       if (tool === 'eraser') {
         eraseObject(o.e);
         return;
       }
-      
+
       const pointer = canvas.getScenePoint(o.e);
       shapeStartX = pointer.x;
       shapeStartY = pointer.y;
@@ -411,7 +440,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
       }
 
       if (!isDrawing.current) return;
-      
+
       const pointer = canvas.getScenePoint(o.e);
       const activeObj = drawingObject.current;
       if (!activeObj) return;
@@ -441,12 +470,12 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
       } else if (tool === 'arrow') {
         const { line, head, startX, startY } = activeObj;
         line.set({ x2: pointer.x, y2: pointer.y });
-        
+
         const angle = Math.atan2(pointer.y - startY, pointer.x - startX) * (180 / Math.PI);
         head.set({ left: pointer.x, top: pointer.y, angle: angle + 90 });
         canvas.requestRenderAll();
       }
-      
+
       // Disabled live shape streaming while dragging to prevent upper-canvas toJSON freezing
       // emitDraw(false);
     };
@@ -462,43 +491,43 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
 
       if (isDrawing.current) {
         isDrawing.current = false;
-        
+
         if (drawingObject.current) {
           isRemoteUpdate.current = true; // Silence canvas events
           if (drawingObject.current.type === 'arrow') {
-             const { line, head, startX, startY } = drawingObject.current;
-             const x2 = line.x2;
-             const y2 = line.y2;
-             const bSize = line.strokeWidth;
-             const cColor = line.stroke;
-             const dy = y2 - startY;
-             const dx = x2 - startX;
-             const angle = Math.atan2(dy, dx);
-             const headlen = Math.max(15, bSize * 3);
-             
-             // Build flawless path geometry to completely avoid JSON nested group parsing crashes
-             const pathData = `M ${startX} ${startY} L ${x2} ${y2} M ${x2 - headlen * Math.cos(angle - Math.PI / 6)} ${y2 - headlen * Math.sin(angle - Math.PI / 6)} L ${x2} ${y2} L ${x2 - headlen * Math.cos(angle + Math.PI / 6)} ${y2 - headlen * Math.sin(angle + Math.PI / 6)}`;
-             
-             const arrowPath = new fabric.Path(pathData, {
-               stroke: cColor,
-               strokeWidth: bSize,
-               fill: 'transparent',
-               strokeLineCap: 'round',
-               strokeLineJoin: 'round',
-               selectable: tool === 'select',
-               evented: tool === 'select'
-             });
-             
-             canvas.remove(line, head);
-             canvas.add(arrowPath);
+            const { line, head, startX, startY } = drawingObject.current;
+            const x2 = line.x2;
+            const y2 = line.y2;
+            const bSize = line.strokeWidth;
+            const cColor = line.stroke;
+            const dy = y2 - startY;
+            const dx = x2 - startX;
+            const angle = Math.atan2(dy, dx);
+            const headlen = Math.max(15, bSize * 3);
+
+            // Build flawless path geometry to completely avoid JSON nested group parsing crashes
+            const pathData = `M ${startX} ${startY} L ${x2} ${y2} M ${x2 - headlen * Math.cos(angle - Math.PI / 6)} ${y2 - headlen * Math.sin(angle - Math.PI / 6)} L ${x2} ${y2} L ${x2 - headlen * Math.cos(angle + Math.PI / 6)} ${y2 - headlen * Math.sin(angle + Math.PI / 6)}`;
+
+            const arrowPath = new fabric.Path(pathData, {
+              stroke: cColor,
+              strokeWidth: bSize,
+              fill: 'transparent',
+              strokeLineCap: 'round',
+              strokeLineJoin: 'round',
+              selectable: tool === 'select',
+              evented: tool === 'select'
+            });
+
+            canvas.remove(line, head);
+            canvas.add(arrowPath);
           } else {
-             drawingObject.current.set({
-               selectable: tool === 'select',
-               evented: tool === 'select',
-             });
+            drawingObject.current.set({
+              selectable: tool === 'select',
+              evented: tool === 'select',
+            });
           }
           isRemoteUpdate.current = false;
-          
+
           drawingObject.current = null;
           emitDraw(true); // Persist final shape state to history and globally
         }
@@ -515,7 +544,7 @@ export const useWhiteboard = (boardId: string, canvasRef: React.RefObject<HTMLCa
       zoom *= 0.999 ** delta;
       if (zoom > 10) zoom = 10;
       if (zoom < 0.1) zoom = 0.1;
-      
+
       canvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom);
       opt.e.preventDefault();
       opt.e.stopPropagation();

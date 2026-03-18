@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useBoardStore } from '../../store/boardStore.ts';
 import { useAuthStore } from '../../store/authStore.ts';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, Plus, LayoutDashboard, Moon, Sun } from 'lucide-react';
+import { LogOut, Plus, LayoutDashboard, Moon, Sun, Trash2, Edit2, Check, X } from 'lucide-react';
 import api from '../../services/api.ts';
 import { useDarkModeStore } from '../../store/darkModeStore.ts';
 
 export function Sidebar() {
-  const { boards, setBoards, addBoard } = useBoardStore();
+  const { boards, setBoards, addBoard, updateBoard, removeBoard } = useBoardStore();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { isDark, toggleDarkMode } = useDarkModeStore();
+
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleCreateBoard = async () => {
     try {
@@ -19,6 +22,39 @@ export function Sidebar() {
       navigate(`/board/${res.data._id}`);
     } catch (error) {
       console.error('Error creating board', error);
+    }
+  };
+
+  const handleDeleteBoard = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!window.confirm('Are you sure you want to delete this board?')) return;
+    try {
+      await api.delete(`/boards/${id}`);
+      removeBoard(id);
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting board', error);
+    }
+  };
+
+  const startEditing = (id: string, name: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setEditingBoardId(id);
+    setEditingName(name);
+  };
+
+  const saveRename = async (id: string) => {
+    if (!editingName.trim()) {
+      setEditingBoardId(null);
+      return;
+    }
+    try {
+      await api.put(`/boards/${id}/rename`, { name: editingName });
+      updateBoard(id, editingName);
+      setEditingBoardId(null);
+    } catch (error) {
+      console.error('Error renaming board', error);
+      setEditingBoardId(null);
     }
   };
 
@@ -60,14 +96,54 @@ export function Sidebar() {
         </div>
         <div className="space-y-1">
           {boards.map((board) => (
-            <Link
-              key={board._id}
-              to={`/board/${board._id}`}
-              className="flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
-            >
-              <LayoutDashboard size={18} className="text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-              <span className="font-medium truncate">{board.name}</span>
-            </Link>
+            <div key={board._id} className="relative group rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center">
+              {editingBoardId === board._id ? (
+                <div className="flex items-center w-full px-3 py-2 gap-2">
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveRename(board._id);
+                      if (e.key === 'Escape') setEditingBoardId(null);
+                    }}
+                    className="flex-1 bg-white dark:bg-gray-900 border border-indigo-500 rounded px-2 py-1 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  />
+                  <button onClick={() => saveRename(board._id)} className="text-green-600 hover:text-green-700 p-1">
+                    <Check size={16} />
+                  </button>
+                  <button onClick={() => setEditingBoardId(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link
+                    to={`/board/${board._id}`}
+                    className="flex-1 flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 overflow-hidden"
+                  >
+                    <LayoutDashboard size={18} className="text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                    <span className="font-medium truncate">{board.name}</span>
+                  </Link>
+                  <div className="hidden group-hover:flex items-center gap-1 pr-2 absolute right-0 bg-gray-100 dark:bg-gray-800 py-2 pl-3 rounded-r-xl border-l border-transparent">
+                    <button 
+                      onClick={(e) => startEditing(board._id, board.name, e)}
+                      className="p-1 rounded text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                      title="Rename"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteBoard(board._id, e)}
+                      className="p-1 rounded text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           ))}
         </div>
       </div>
