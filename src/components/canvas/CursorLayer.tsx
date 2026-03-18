@@ -1,30 +1,34 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSocket } from '../../hooks/useSocket.ts';
 import throttle from 'lodash/throttle';
+import { useAuthStore } from '../../store/authStore.ts';
 
 interface CursorLayerProps {
   boardId: string;
+  isOwner: boolean;
 }
 
-export default function CursorLayer({ boardId }: CursorLayerProps) {
+export default function CursorLayer({ boardId, isOwner }: CursorLayerProps) {
   const socket = useSocket(boardId);
-  const [cursors, setCursors] = useState<{ [key: string]: { x: number; y: number } }>({});
+  const { user } = useAuthStore();
+  const [cursors, setCursors] = useState<{ [key: string]: { x: number; y: number; userName?: string } }>({});
 
   const throttledEmitCursor = useMemo(
     () => throttle((cursor: { x: number; y: number }) => {
-      socket.emit('cursor-move', { boardId, cursor, userId: socket.id });
+      const name = isOwner ? user?.name : undefined;
+      socket.emit('cursor-move', { boardId, cursor, userId: socket.id, userName: name });
     }, 50),
-    [boardId, socket]
+    [boardId, socket, isOwner, user?.name]
   );
 
   useEffect(() => {
-    socket.on('cursor-move', (data: { userId: string; cursor: { x: number; y: number } }) => {
+    socket.on('cursor-move', (data: { userId: string; cursor: { x: number; y: number }; userName?: string }) => {
       // Don't show our own cursor
       if (data.userId === socket.id) return;
       
       setCursors((prev) => ({
         ...prev,
-        [data.userId]: data.cursor,
+        [data.userId]: { ...data.cursor, userName: data.userName },
       }));
     });
 
@@ -50,7 +54,7 @@ export default function CursorLayer({ boardId }: CursorLayerProps) {
           style={{ left: pos.x, top: pos.y }}
         >
           <span className="absolute left-6 top-0 text-xs font-bold text-white bg-indigo-500 px-2 py-1 rounded-md whitespace-nowrap shadow-sm">
-            {userId.substring(0, 4)}
+            {pos.userName ? pos.userName : `Guest ${userId.substring(0, 4)}`}
           </span>
         </div>
       ))}

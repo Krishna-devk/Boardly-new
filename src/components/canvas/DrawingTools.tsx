@@ -154,7 +154,7 @@ export default function DrawingTools({ tool, setTool, color, setColor, brushSize
                               initial={{ opacity: 0, x: 0, y: 0, scale: 0 }}
                               animate={{ opacity: 1, x, y, scale: 1 }}
                               exit={{ opacity: 0, x: 0, y: 0, scale: 0 }}
-                              transition={{ type: 'spring', bounce: 0.4, delay: index * 0.025 }}
+                              transition={{ type: 'spring', stiffness: 450, damping: 25, delay: index * 0.01 }}
                               onClick={() => { setColor(c); setShowColors(false); }}
                               className={`absolute -ml-4 -mt-4 w-8 h-8 rounded-full border shadow-[0_8px_16px_rgba(0,0,0,0.25)] hover:scale-125 pointer-events-auto transition-transform ${color === c ? 'ring-4 ring-indigo-500/60 ring-offset-2 border-transparent dark:ring-offset-gray-900' : 'border-white/90 dark:border-gray-500'}`}
                               style={{ backgroundColor: c }}
@@ -166,7 +166,7 @@ export default function DrawingTools({ tool, setTool, color, setColor, brushSize
                            initial={{ opacity: 0, x: 0, y: 0, scale: 0 }}
                            animate={{ opacity: 1, x: 105, y: 0, scale: 1 }}
                            exit={{ opacity: 0, x: 0, y: 0, scale: 0 }}
-                           transition={{ type: 'spring', bounce: 0.4, delay: presetColors.length * 0.025 }}
+                           transition={{ type: 'spring', stiffness: 450, damping: 25, delay: presetColors.length * 0.01 }}
                            title="Custom Color Picker"
                            className="absolute -ml-5 -mt-5 w-10 h-10 pointer-events-auto rounded-[16px] bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-[0_10px_25px_rgba(0,0,0,0.2)] flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-pointer"
                         >

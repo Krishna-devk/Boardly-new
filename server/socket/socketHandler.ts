@@ -18,10 +18,11 @@ export const setupSocket = (io: Server) => {
       updateBoardElements(data.boardId, data.elements);
     });
 
-    socket.on(SOCKET_EVENTS.CURSOR_MOVE, (data: { boardId: string; cursor: any; userId: string }) => {
+    socket.on(SOCKET_EVENTS.CURSOR_MOVE, (data: { boardId: string; cursor: any; userId: string; userName?: string }) => {
       socket.to(data.boardId).emit(SOCKET_EVENTS.CURSOR_MOVE, {
         userId: data.userId,
         cursor: data.cursor,
+        userName: data.userName,
       });
     });
 

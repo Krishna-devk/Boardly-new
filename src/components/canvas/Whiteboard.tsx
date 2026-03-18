@@ -6,13 +6,14 @@ import CursorLayer from './CursorLayer.tsx';
 interface WhiteboardProps {
   boardId: string;
   isDrawingDisabled?: boolean;
+  isOwner?: boolean;
 }
 
 export interface WhiteboardRef {
   downloadImage: () => void;
 }
 
-const Whiteboard = forwardRef<WhiteboardRef, WhiteboardProps>(({ boardId, isDrawingDisabled = false }, ref) => {
+const Whiteboard = forwardRef<WhiteboardRef, WhiteboardProps>(({ boardId, isDrawingDisabled = false, isOwner = false }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { fabricCanvas, tool, setTool, color, setColor, brushSize, setBrushSize, undo, redo } = useWhiteboard(boardId, canvasRef, isDrawingDisabled);
 
@@ -58,7 +59,7 @@ const Whiteboard = forwardRef<WhiteboardRef, WhiteboardProps>(({ boardId, isDraw
         />
       )}
       
-      <CursorLayer boardId={boardId} />
+      <CursorLayer boardId={boardId} isOwner={isOwner} />
     </div>
   );
 });

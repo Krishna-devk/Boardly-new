@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button.tsx';
 import api from '../services/api.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { getSocket } from '../services/socket.ts';
-import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Copy, Check, X } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Board() {
@@ -19,6 +19,7 @@ export default function Board() {
   const [copied, setCopied] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isBannerVisible, setIsBannerVisible] = useState(true);
   const whiteboardRef = useRef<WhiteboardRef>(null);
 
   useEffect(() => {
@@ -116,10 +117,13 @@ export default function Board() {
         onRename={handleRename}
       />
 
-      {isDrawingDisabled && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 px-6 py-3 rounded-2xl shadow-lg backdrop-blur-md border border-amber-200 dark:border-amber-700 font-medium text-sm flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      {isDrawingDisabled && isBannerVisible && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 px-6 py-3 rounded-2xl shadow-lg backdrop-blur-md border border-amber-200 dark:border-amber-700 font-medium text-sm flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Board is locked by the owner — view only
+          <button onClick={() => setIsBannerVisible(false)} className="ml-2 hover:bg-amber-200 dark:hover:bg-amber-800/50 p-1.5 rounded-full transition-colors flex items-center justify-center" aria-label="Dismiss banner">
+            <X size={16} />
+          </button>
         </div>
       )}
 
