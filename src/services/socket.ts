@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io(window.location.origin);
+    socket = io(import.meta.env.VITE_SOCKET_URL || window.location.origin);
     
     // Connect to Zustand store
     useSocketStore.getState().setSocket(socket);

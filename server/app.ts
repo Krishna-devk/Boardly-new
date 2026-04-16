@@ -1,9 +1,11 @@
 import express from 'express';
+import cors from 'cors';
 import authRoutes from './routes/authRoutes.ts';
 import boardRoutes from './routes/boardRoutes.ts';
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
